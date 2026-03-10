@@ -36,35 +36,42 @@ export default function App() {
   const saveDevice = async (data) => {
     try {
       const { id, created_at, ...fields } = data
-      if (id) { const updated = await api.updateDevice(id, fields); setDevices((prev) => prev.map((d) => d.id === id ? updated : d)); showToast('Device updated.') }
-      else { const created = await api.createDevice(fields); setDevices((prev) => [created, ...prev]); showToast('Device registered.') }
+      if (id) { await api.updateDevice(id, fields); showToast('Device updated.') }
+      else { await api.createDevice(fields); showToast('Device registered.') }
       setDeviceModal(null)
-    } catch { showToast('Error saving device.', false) }
+      loadAll()
+    } catch (e) {
+      if (e.status === 409) { showToast('Someone else edited this device. Data refreshed — please try again.', false); loadAll() }
+      else { showToast('Error saving device.', false) }
+    }
   }
 
   const deleteDevice = async (id) => {
     if (!window.confirm('Delete this device and ALL its restore records? This cannot be undone.')) return
     try {
       await Promise.all([api.deleteDevice(id), api.deleteRestoresByDevice(id)])
-      setDevices((prev) => prev.filter((d) => d.id !== id))
-      setRestores((prev) => prev.filter((r) => r.device_id !== id))
       showToast('Device deleted.', false)
       if (detailId === id) { setDetailId(null); setView('devices') }
+      loadAll()
     } catch { showToast('Error deleting device.', false) }
   }
 
   const saveRestore = async (data) => {
     try {
       const { id, created_at, ...fields } = data
-      if (id) { const updated = await api.updateRestore(id, fields); setRestores((prev) => prev.map((r) => r.id === id ? updated : r)); showToast('Record updated.') }
-      else { const created = await api.createRestore(fields); setRestores((prev) => [created, ...prev]); showToast('Restore logged.') }
+      if (id) { await api.updateRestore(id, fields); showToast('Record updated.') }
+      else { await api.createRestore(fields); showToast('Restore logged.') }
       setRestoreModal(null)
-    } catch { showToast('Error saving restore.', false) }
+      loadAll()
+    } catch (e) {
+      if (e.status === 409) { showToast('Someone else edited this record. Data refreshed — please try again.', false); loadAll() }
+      else { showToast('Error saving restore.', false) }
+    }
   }
 
   const deleteRestore = async (id) => {
     if (!window.confirm('Delete this restore record?')) return
-    try { await api.deleteRestore(id); setRestores((prev) => prev.filter((r) => r.id !== id)); showToast('Record deleted.', false) }
+    try { await api.deleteRestore(id); showToast('Record deleted.', false); loadAll() }
     catch { showToast('Error deleting record.', false) }
   }
 
