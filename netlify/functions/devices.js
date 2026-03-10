@@ -4,45 +4,61 @@ const STORE = 'restore-tracker'
 const DEVICES_KEY = 'devices'
 
 function cors(body, status = 200) {
-  return { statusCode: status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS' }, body: JSON.stringify(body) }
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+    }
+  })
 }
 
 async function getDevices(store) {
-  try { const raw = await store.get(DEVICES_KEY); return raw ? JSON.parse(raw) : [] } catch { return [] }
+  try {
+    const raw = await store.get(DEVICES_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
 }
 
 export default async function handler(req, context) {
-  if (req.method === 'OPTIONS') return cors({})
+  if (req.method === 'OPTIONS') return cors(null, 204)
   const store = getStore({ name: STORE, consistency: 'strong' })
   const url = new URL(req.url)
   const id = url.searchParams.get('id')
 
-  if (req.method === 'GET') { const devices = await getDevices(store); return cors(devices) }
+  if (req.method === 'GET') {
+    const devices = await getDevices(store)
+    return cors(devices)
+  }
 
   if (req.method === 'POST') {
     const body = await req.json()
     const devices = await getDevices(store)
-    const device = { ...body, id: crypto.randomUUID(), created_at: new Date().toISOString() }
-    devices.unshift(device)
+    const device = { ...body, id: crypto.randomUUID(), createdAt: new Date().toISOString() }
+    devices.push(device)
     await store.set(DEVICES_KEY, JSON.stringify(devices))
     return cors(device, 201)
   }
 
-  if (req.method === 'PUT' && id) {
+  if (req.method === 'PUT') {
     const body = await req.json()
     const devices = await getDevices(store)
-    const idx = devices.findIndex((d) => d.id === id)
+    const idx = devices.findIndex(d => d.id === id)
     if (idx === -1) return cors({ error: 'Not found' }, 404)
-    devices[idx] = { ...devices[idx], ...body }
+    devices[idx] = { ...devices[idx], ...body, id }
     await store.set(DEVICES_KEY, JSON.stringify(devices))
     return cors(devices[idx])
   }
 
-  if (req.method === 'DELETE' && id) {
+  if (req.method === 'DELETE') {
     const devices = await getDevices(store)
-    const filtered = devices.filter((d) => d.id !== id)
+    const filtered = devices.filter(d => d.id !== id)
     await store.set(DEVICES_KEY, JSON.stringify(filtered))
-    return cors({ deleted: id })
+    return cors({ ok: true })
   }
 
   return cors({ error: 'Method not allowed' }, 405)
