@@ -1,0 +1,14 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f172a; color: #e2e8f0; font-family: 'IBM Plex Mono', monospace; min-height: 100vh; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1e293b; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+select option { background: #1e293b; }
+.row-hover:hover { background: rgba(30,58,95,0.2) !important; }
+.btn-primary { background: #3b82f6; color: #fff; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500; transition: background 0.15s; white-space: nowrap; }
+.btn-primary:hover { background: #2563eb; }
+.btn-primary:disabled { opacity: 0.4; cursor: default; }
+.btn-ghost { background: transparent; border: 1px solid #334155; color: #94a3b8; padding: 6px 13px; border-radius: 6px; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 12px; transition: all 0.15s; white-space: nowrap; }
+.btn-ghost:hover { border-color: #64748b; color: #e2e8f0; }
+.field-input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 9px 12px; color: #e2e8f0; font-size: 13px; outline: none; font-family: 'IBM Plex Mono', monospace; transition: border-color 0.15s; }
+.field-input:focus { border-color: #3b82f6; }
