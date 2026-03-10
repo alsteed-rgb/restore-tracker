@@ -1,0 +1,23 @@
+const BASE = '/api'
+
+async function req(method, path, body) {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) throw new Error(`API error ${res.status}`)
+  return res.json()
+}
+
+export const api = {
+  getDevices:    ()           => req('GET',    '/devices'),
+  createDevice:  (data)       => req('POST',   '/devices', data),
+  updateDevice:  (id, data)   => req('PUT',    `/devices?id=${id}`, data),
+  deleteDevice:  (id)         => req('DELETE', `/devices?id=${id}`),
+  getRestores:   ()           => req('GET',    '/restores'),
+  createRestore: (data)       => req('POST',   '/restores', data),
+  updateRestore: (id, data)   => req('PUT',    `/restores?id=${id}`, data),
+  deleteRestore: (id)         => req('DELETE', `/restores?id=${id}`),
+  deleteRestoresByDevice: (deviceId) => req('DELETE', `/restores?device_id=${deviceId}`),
+}
