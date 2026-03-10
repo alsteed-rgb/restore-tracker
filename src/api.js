@@ -20,4 +20,14 @@ export const api = {
   updateRestore: (id, data)   => req('PUT',    `/restores?id=${id}`, data),
   deleteRestore: (id)         => req('DELETE', `/restores?id=${id}`),
   deleteRestoresByDevice: (deviceId) => req('DELETE', `/restores?device_id=${deviceId}`),
+
+  uploadScreenshot: async (id, file) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch(`/api/restores?action=screenshot&id=${id}`, { method: 'POST', body: fd })
+    if (!res.ok) throw new Error(`API error ${res.status}`)
+    return res.json()
+  },
+
+  screenshotUrl: (id) => `/api/restores?action=screenshot&id=${id}`,
 }
