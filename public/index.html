@@ -3,216 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Autotask — Open Tickets</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: system-ui, sans-serif;
-      background: #f4f5f7;
-      color: #172b4d;
-      min-height: 100vh;
-    }
-
-    header {
-      background: #0052cc;
-      color: #fff;
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    header h1 { font-size: 1.25rem; font-weight: 600; }
-
-    .toolbar {
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .btn {
-      padding: 0.5rem 1.25rem;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.875rem;
-      font-weight: 500;
-      background: #0052cc;
-      color: #fff;
-      transition: background 0.15s;
-    }
-    .btn:hover  { background: #0065ff; }
-    .btn:active { background: #003d99; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    #status-filter {
-      padding: 0.45rem 0.75rem;
-      border: 1px solid #c1c7d0;
-      border-radius: 4px;
-      font-size: 0.875rem;
-      background: #fff;
-    }
-
-    #count { font-size: 0.875rem; color: #5e6c84; margin-left: auto; }
-
-    main { padding: 0 2rem 2rem; }
-
-    #error {
-      background: #ffebe6;
-      border: 1px solid #ff5630;
-      color: #bf2600;
-      padding: 0.75rem 1rem;
-      border-radius: 4px;
-      margin-bottom: 1rem;
-      display: none;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #fff;
-      border-radius: 6px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,.1);
-      font-size: 0.875rem;
-    }
-
-    thead { background: #f4f5f7; }
-    th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #ebecf0; }
-    th { font-weight: 600; color: #5e6c84; font-size: 0.75rem; text-transform: uppercase; letter-spacing: .05em; }
-    tbody tr:hover { background: #f8f9ff; }
-    tbody tr:last-child td { border-bottom: none; }
-
-    .ticket-num { font-family: monospace; color: #0052cc; font-weight: 600; }
-    .badge {
-      display: inline-block;
-      padding: 0.2rem 0.5rem;
-      border-radius: 3px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .empty {
-      text-align: center;
-      padding: 3rem;
-      color: #5e6c84;
-      background: #fff;
-      border-radius: 6px;
-      box-shadow: 0 1px 3px rgba(0,0,0,.1);
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 1rem; height: 1rem;
-      border: 2px solid #fff;
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: spin .6s linear infinite;
-      vertical-align: middle;
-      margin-right: .4rem;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+  <title>Autotask Dashboard</title>
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 
 <header>
-  <h1>Autotask — Open Tickets</h1>
+  <h1>Autotask Dashboard</h1>
+  <span id="last-updated"></span>
+  <button class="btn btn-ghost" id="refresh-btn">Refresh</button>
+  <button class="btn btn-white" id="customize-btn">Customize</button>
 </header>
 
-<div class="toolbar">
-  <select id="status-filter">
-    <option value="open">Open tickets</option>
-    <option value="closed">Closed tickets</option>
-  </select>
-  <button class="btn" id="refresh-btn" onclick="load()">Refresh</button>
-  <span id="count"></span>
-</div>
+<main id="dashboard"></main>
 
-<main>
-  <div id="error"></div>
-  <div id="content"></div>
-</main>
+<!-- Dim overlay behind the customize panel -->
+<div id="customize-overlay"></div>
 
-<script>
-  const PRIORITY = { 1: { label: 'Critical', bg: '#ff5630', color: '#fff' },
-                     2: { label: 'High',     bg: '#ff8b00', color: '#fff' },
-                     3: { label: 'Medium',   bg: '#0052cc', color: '#fff' },
-                     4: { label: 'Low',      bg: '#6b778c', color: '#fff' } }
+<!-- Customize slide-in panel -->
+<aside id="customize-panel">
+  <div class="customize-header">
+    <h2>Customize Dashboard</h2>
+    <button id="close-customize" title="Close">✕</button>
+  </div>
+  <p class="customize-hint">Drag to reorder &nbsp;·&nbsp; Toggle to show/hide</p>
+  <ul id="widget-list"></ul>
+  <div class="customize-footer">
+    <button class="btn btn-soft" id="cancel-customize">Cancel</button>
+    <button class="btn btn-solid" id="save-customize">Save</button>
+  </div>
+</aside>
 
-  function fmt(dateStr) {
-    if (!dateStr) return '—'
-    return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-  }
+<!-- Chart.js v4 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<!-- SortableJS for drag-to-reorder in customize panel -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<!-- Dashboard app -->
+<script src="/app.js"></script>
 
-  function badge(priorityId) {
-    const p = PRIORITY[priorityId] ?? { label: `P${priorityId}`, bg: '#dfe1e6', color: '#172b4d' }
-    return `<span class="badge" style="background:${p.bg};color:${p.color}">${p.label}</span>`
-  }
-
-  async function load() {
-    const btn = document.getElementById('refresh-btn')
-    const errEl = document.getElementById('error')
-    const contentEl = document.getElementById('content')
-    const countEl = document.getElementById('count')
-    const status = document.getElementById('status-filter').value
-
-    btn.disabled = true
-    btn.innerHTML = '<span class="spinner"></span>Loading…'
-    errEl.style.display = 'none'
-    contentEl.innerHTML = ''
-    countEl.textContent = ''
-
-    try {
-      const res = await fetch(`/api/tickets?status=${status}`)
-      const data = await res.json()
-
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
-
-      const tickets = data.items ?? []
-      countEl.textContent = `${tickets.length} ticket${tickets.length !== 1 ? 's' : ''}`
-
-      if (!tickets.length) {
-        contentEl.innerHTML = '<div class="empty">No tickets found.</div>'
-        return
-      }
-
-      contentEl.innerHTML = `
-        <table>
-          <thead>
-            <tr>
-              <th>Ticket #</th>
-              <th>Title</th>
-              <th>Priority</th>
-              <th>Created</th>
-              <th>Last Activity</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tickets.map(t => `
-              <tr>
-                <td><span class="ticket-num">${t.ticketNumber ?? t.id}</span></td>
-                <td>${t.title ?? '—'}</td>
-                <td>${badge(t.priority)}</td>
-                <td>${fmt(t.createDate)}</td>
-                <td>${fmt(t.lastActivityDate)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `
-    } catch (err) {
-      errEl.textContent = `Error: ${err.message}`
-      errEl.style.display = 'block'
-    } finally {
-      btn.disabled = false
-      btn.textContent = 'Refresh'
-    }
-  }
-
-  document.getElementById('status-filter').addEventListener('change', load)
-  load()
-</script>
 </body>
 </html>
