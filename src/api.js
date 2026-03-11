@@ -6,6 +6,13 @@ async function req(method, path, body) {
     headers: body ? { 'Content-Type': 'application/json' } : {},
     body: body ? JSON.stringify(body) : undefined,
   })
+  if (res.status === 409) {
+    const data = await res.json()
+    const err = new Error('Conflict')
+    err.status = 409
+    err.current = data.current
+    throw err
+  }
   if (!res.ok) throw new Error(`API error ${res.status}`)
   return res.json()
 }

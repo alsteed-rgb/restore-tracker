@@ -39,17 +39,20 @@ export default function App() {
       if (id) { const updated = await api.updateDevice(id, fields); setDevices((prev) => prev.map((d) => d.id === id ? updated : d)) }
       else { const created = await api.createDevice(fields); setDevices((prev) => [...prev, created]) }
       setDeviceModal(null)
-    } catch { showToast('Error saving device.', false) }
+      loadAll()
+    } catch (e) {
+      if (e.status === 409) { showToast('Someone else edited this device. Data refreshed — please try again.', false); loadAll() }
+      else { showToast('Error saving device.', false) }
+    }
   }
 
   const deleteDevice = async (id) => {
     if (!window.confirm('Delete this device and ALL its restore records? This cannot be undone.')) return
     try {
       await Promise.all([api.deleteDevice(id), api.deleteRestoresByDevice(id)])
-      setDevices((prev) => prev.filter((d) => d.id !== id))
-      setRestores((prev) => prev.filter((r) => r.device_id !== id))
       showToast('Device deleted.', false)
       if (detailId === id) { setDetailId(null); setView('devices') }
+      loadAll()
     } catch { showToast('Error deleting device.', false) }
   }
 
@@ -69,7 +72,11 @@ export default function App() {
         setRestores((prev) => prev.map((r) => r.id === saved.id ? { ...r, hasScreenshot: true } : r))
       }
       setRestoreModal(null)
-    } catch { showToast('Error saving restore.', false) }
+      loadAll()
+    } catch (e) {
+      if (e.status === 409) { showToast('Someone else edited this record. Data refreshed — please try again.', false); loadAll() }
+      else { showToast('Error saving restore.', false) }
+    }
   }
 
   const deleteRestore = async (id) => {

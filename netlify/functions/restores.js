@@ -1,7 +1,6 @@
 import { getStore } from '@netlify/blobs'
 
 const STORE = 'restore-tracker'
-const RESTORES_KEY = 'restores'
 
 function cors(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -15,16 +14,37 @@ function cors(body, status = 200) {
   })
 }
 
-async function getRestores(store) {
-  try {
-    const raw = await store.get(RESTORES_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
+// Fetch all restores stored as individual blobs (restore-{id}).
+// On first run, migrates legacy single-blob format automatically.
+async function getAllRestores(store) {
+  const { blobs } = await store.list({ prefix: 'restore-' })
+
+  if (blobs.length === 0) {
+    // Migrate from legacy single-blob format if present
+    const legacy = await store.get('restores')
+    if (legacy) {
+      const records = JSON.parse(legacy)
+      await Promise.all(records.map(r => store.set(`restore-${r.id}`, JSON.stringify(r))))
+      await store.delete('restores')
+      return records
+    }
     return []
   }
+
+  const results = await Promise.all(
+    blobs.map(async ({ key }) => {
+      try {
+        const raw = await store.get(key)
+        return raw ? JSON.parse(raw) : null
+      } catch {
+        return null
+      }
+    })
+  )
+  return results.filter(Boolean)
 }
 
-export default async function handler(req, context) {
+export default async function handler(req) {
   if (req.method === 'OPTIONS') return cors(null, 204)
   const store = getStore({ name: STORE, consistency: 'strong' })
   const url = new URL(req.url)
@@ -62,51 +82,65 @@ export default async function handler(req, context) {
     await store.set(`screenshot-${id}`, buffer, {
       metadata: { contentType: file.type || 'image/png' }
     })
-    const restores = await getRestores(store)
-    const idx = restores.findIndex(r => r.id === id)
-    if (idx !== -1) {
-      restores[idx].hasScreenshot = true
-      await store.set(RESTORES_KEY, JSON.stringify(restores))
+    // Update only the individual restore blob — no array read needed
+    const raw = await store.get(`restore-${id}`)
+    if (raw) {
+      const restore = JSON.parse(raw)
+      restore.hasScreenshot = true
+      restore.updatedAt = new Date().toISOString()
+      await store.set(`restore-${id}`, JSON.stringify(restore))
     }
     return cors({ ok: true })
   }
 
   // --- List / filter
   if (req.method === 'GET') {
-    const restores = await getRestores(store)
+    const restores = await getAllRestores(store)
     return cors(deviceId ? restores.filter(r => r.device_id === deviceId) : restores)
   }
 
   if (req.method === 'POST') {
     const body = await req.json()
-    const restores = await getRestores(store)
-    const restore = { ...body, id: crypto.randomUUID(), createdAt: new Date().toISOString() }
-    restores.push(restore)
-    await store.set(RESTORES_KEY, JSON.stringify(restores))
+    const now = new Date().toISOString()
+    const restore = { ...body, id: crypto.randomUUID(), createdAt: now, updatedAt: now }
+    await store.set(`restore-${restore.id}`, JSON.stringify(restore))
     return cors(restore, 201)
   }
 
   if (req.method === 'PUT') {
+    if (!id) return cors({ error: 'id required' }, 400)
     const body = await req.json()
-    const restores = await getRestores(store)
-    const idx = restores.findIndex(r => r.id === id)
-    if (idx === -1) return cors({ error: 'Not found' }, 404)
-    restores[idx] = { ...restores[idx], ...body, id }
-    await store.set(RESTORES_KEY, JSON.stringify(restores))
-    return cors(restores[idx])
+    const raw = await store.get(`restore-${id}`)
+    if (!raw) return cors({ error: 'Not found' }, 404)
+    const existing = JSON.parse(raw)
+
+    // Conflict detection: reject if another user updated this record since the client loaded it
+    if (body.updatedAt && existing.updatedAt && body.updatedAt !== existing.updatedAt) {
+      return cors({ error: 'Conflict', current: existing }, 409)
+    }
+
+    const { updatedAt: _clientTs, ...fields } = body
+    const updated = { ...existing, ...fields, id, updatedAt: new Date().toISOString() }
+    await store.set(`restore-${id}`, JSON.stringify(updated))
+    return cors(updated)
   }
 
   if (req.method === 'DELETE') {
-    const restores = await getRestores(store)
-    const toDelete = deviceId
-      ? restores.filter(r => r.device_id === deviceId)
-      : restores.filter(r => r.id === id)
-    // Clean up screenshots for deleted restores
-    await Promise.allSettled(toDelete.map(r => store.delete(`screenshot-${r.id}`)))
-    const filtered = deviceId
-      ? restores.filter(r => r.device_id !== deviceId)
-      : restores.filter(r => r.id !== id)
-    await store.set(RESTORES_KEY, JSON.stringify(filtered))
+    if (deviceId) {
+      // Delete all restores for a device
+      const restores = await getAllRestores(store)
+      const toDelete = restores.filter(r => r.device_id === deviceId)
+      await Promise.allSettled([
+        ...toDelete.map(r => store.delete(`restore-${r.id}`)),
+        ...toDelete.map(r => store.delete(`screenshot-${r.id}`))
+      ])
+      return cors({ ok: true })
+    }
+    if (!id) return cors({ error: 'id or device_id required' }, 400)
+    await Promise.allSettled([
+      store.delete(`restore-${id}`),
+      store.delete(`screenshot-${id}`)
+    ])
     return cors({ ok: true })
   }
 
