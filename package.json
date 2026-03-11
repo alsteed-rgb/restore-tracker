@@ -1,0 +1,16 @@
+{
+  "name": "autotask-api",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Autotask REST API client and Netlify-hosted tools",
+  "scripts": {
+    "dev": "netlify dev",
+    "getZone": "node scripts/getZone.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}
