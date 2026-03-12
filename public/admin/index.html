@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Identity Admin</title>
+  <link rel="stylesheet" href="/admin/admin.css" />
+  <!-- Netlify Identity Widget -->
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+
+<!-- ── Login view ──────────────────────────────────────────────────────────── -->
+<div id="login-view">
+  <div class="login-card">
+    <h1>Admin Login</h1>
+    <p>Sign in with your admin account to continue.</p>
+    <button class="btn btn-primary" id="login-btn">Sign in</button>
+  </div>
+</div>
+
+<!-- ── Forbidden view ─────────────────────────────────────────────────────── -->
+<div id="forbidden-view" class="hidden">
+  <div class="login-card">
+    <h1>Access Denied</h1>
+    <p>Your account does not have admin access.</p>
+    <button class="btn btn-ghost" id="logout-forbidden-btn">Sign out</button>
+  </div>
+</div>
+
+<!-- ── Admin view ─────────────────────────────────────────────────────────── -->
+<div id="admin-view" class="hidden">
+  <header>
+    <span class="header-title">Identity Admin</span>
+    <span id="admin-email" class="header-email"></span>
+    <button class="btn btn-ghost" id="logout-btn">Sign out</button>
+  </header>
+
+  <main>
+    <!-- Invite section -->
+    <section class="card invite-section">
+      <h2>Invite Customer</h2>
+      <div class="invite-row">
+        <input type="email" id="invite-email" placeholder="customer@example.com" />
+        <button class="btn btn-primary" id="invite-btn">Send Invite</button>
+      </div>
+      <div id="invite-feedback" class="feedback hidden"></div>
+    </section>
+
+    <!-- Users table -->
+    <section class="card">
+      <div class="section-header">
+        <h2>Users <span id="user-count" class="count-badge"></span></h2>
+        <button class="btn btn-ghost-dark" id="refresh-btn">Refresh</button>
+      </div>
+      <div id="table-wrap">
+        <div class="loading">Loading users…</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/admin/admin.js"></script>
+</body>
+</html>
